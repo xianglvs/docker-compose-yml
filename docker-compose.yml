@@ -9,6 +9,15 @@ services:
         ports:
             - "3306:3306/tcp"
             - "33060:33060/tcp"
+    mysql_latest:
+        environment:
+            MYSQL_ROOT_PASSWORD: "root"
+        image: "mysql:latest" 
+        restart: always
+        command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+        ports:
+            - "3307:3306/tcp"
+            - "33070:33060/tcp"
     postgres_latest:
         environment:
             POSTGRES_PASSWORD: "postgres"
@@ -21,3 +30,9 @@ services:
         restart: always
         ports:
             - "6379:6379/tcp"
+    jenkins_latest:
+        image: "jenkins:latest" 
+        restart: always
+        ports:
+            - "8080:8080/tcp"
+            - "50000:50000/tcp"
