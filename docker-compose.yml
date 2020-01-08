@@ -2,14 +2,69 @@ version: '3'
 services:
     mysql_5.7:
         environment:
-            TZ: Asia/Shanghai
-            MYSQL_ROOT_PASSWORD: "root"
+          TZ: Asia/Shanghai
+          MYSQL_ROOT_PASSWORD: "root"
         image: "mysql:5.7" 
         #restart: always
+        volumes:
+          - "/D/xianglv/docker-share/mysql:/var/lib/mysql"
         command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
         ports:
-            - "3306:3306/tcp"
-            - "33060:33060/tcp"
+          - "3306:3306/tcp"
+          - "33060:33060/tcp"
+        container_name:
+          mysql_5.7
+        networks:
+          - my
+    tracker:
+        image: tsl0922/fastdfs
+        ports:
+          - "22122:22122"
+        command: tracker
+        volumes:
+          - "/D/xianglv/docker-share/fastdfs/tracker-data:/fastdfs/tracker"
+        container_name:
+          fastdfs-tracker
+        networks:
+          - my
+    # mysql_8.0.15:
+    #     environment:
+    #         MYSQL_ROOT_PASSWORD: "root"
+    #     image: "mysql:8.0.15" 
+    #     #restart: always
+    #     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    #     ports:
+    #         - "3307:3306/tcp"
+    #         - "33070:33060/tcp"
+
+    storage:
+      image: tsl0922/fastdfs
+      command: storage
+      ports:
+        - "23000:23000"
+      environment:
+        - FDFS_TRACKER_SERVER=fastdfs-tracker:22122
+      volumes:
+        - "/D/xianglv/docker-share/fastdfs/storage-data:/fastdfs/storage"
+      container_name:
+        fastdfs-storage
+      networks:
+        - my
+    nginx:
+      image: tsl0922/fastdfs
+      command: nginx
+      ports:
+        - "8123:80"
+      environment:
+        - FDFS_TRACKER_SERVER=tracker:22122
+        - NGINX_CACHE_PATH=/fastdfs/nginx_cache
+        - NGINX_RESOLVER=127.0.0.11
+      volumes:
+        - "/D/xianglv/docker-share/fastdfs/nginx-cache:/fastdfs/nginx_cache"
+      container_name:
+        fastdfs-nginx
+      networks:
+        - my
     # mysql_8.0.15:
     #     environment:
     #         MYSQL_ROOT_PASSWORD: "root"
@@ -23,10 +78,33 @@ services:
         environment:
             TZ: Asia/Shanghai
             POSTGRES_PASSWORD: "postgres"
-        image: "postgres:latest" 
+            PGDATA: /var/lib/postgresql/data
+        image: "postgres:latest"
         #restart: always
+        volumes:
+            - postgres:/var/lib/postgresql/data
         ports:
             - "5432:5432/tcp"
+        container_name:
+          postgres
+        networks:
+          - my
+    dm_latest:
+        environment:
+            TZ: Asia/Shanghai
+            POSTGRES_PASSWORD: "SYSDBA"
+        image: "wangzldocker/dmserver:latest"
+        #restart: always
+        volumes:
+        - "dm:/home/dmdba"
+        ports:
+            - "5236:5236/tcp"
+        container_name:
+          dm
+        networks:
+          - my
+
+
     redis_latest:
         image: "redis:latest" 
         environment:
@@ -34,24 +112,33 @@ services:
         #restart: always
         ports:
             - "6379:6379/tcp"
+        container_name:
+            redis
+        networks:
+          - my
     # nginx_latest:
     #     image: "nginx:latest" 
     #     #restart: always
     #     ports:
     #         - "80:80/tcp"
-    # node_latest:
-    #     image: "node:latest" 
-    #     #restart: always
-    #     user: "node"
-    #     working_dir: /home/node/app
-    #     environment:
-    #         - TZ=Asia/Shanghai
-    #         - NODE_ENV=production
-    #     volumes:
-    #         - /docker-share/node:/home/node/app
-    #     ports:
-    #         - 1234:1234
-    #     command: "npm start"
+    node_latest:
+        image: "node:latest" 
+        tty: true
+        #restart: always
+        user: "node"
+        working_dir: /home/node/app
+        environment:
+            - TZ=Asia/Shanghai
+            - NODE_ENV=production
+        volumes:
+            - /D/xianglv/docker-share/nodejs:/home/node/app
+        ports:
+            - 1234:1234
+        container_name:
+            nodejs
+        networks:
+          - my
+        #command: "npm start"
 
     jenkins_latest:
         image: "jenkins/jenkins:lts" 
@@ -60,7 +147,68 @@ services:
         #restart: always
         #user: "root"
         volumes:
-            - "/docker-share/jenkins_home:/var/jenkins_home"
+            - "/D/xianglv/docker-share/jenkins_home:/var/jenkins_home"
         ports:
-            - "8080:8080/tcp"
             - "50000:50000/tcp"
+            - "50001:8080/tcp"
+        container_name:
+            jenkins
+        networks:
+          - my
+    rabbitmq:
+        image: "rabbitmq"
+        ports:
+            - "5672:5672/tcp"
+        container_name:
+            rabbitmq
+        networks:
+          - my
+    centos_latest:
+        image: "centos:latest" 
+        tty: true
+        environment:
+            TZ: Asia/Shanghai
+        #restart: always
+        user: "root"
+        ports:
+            - "9988:9988/tcp"
+            - "9977:9977/tcp"
+            - "9966:9966/tcp"
+            - "9955:9955/tcp"
+            - "9944:9944/tcp"
+            - "9933:22/tcp"
+        privileged: true
+        command: /usr/sbin/init
+        container_name:
+          centos
+        networks:
+          - my
+    # debian_latest:
+    #     image: "debian:latest" 
+    #     tty: true
+    #     environment:
+    #         TZ: Asia/Shanghai
+    #     #restart: always
+    #     user: "root"
+    #     ports:
+    #         - "9988:9988/tcp"
+    #         - "9977:9977/tcp"
+    #         - "9966:9966/tcp"
+    #         - "9955:9955/tcp"
+    #         - "9944:9944/tcp"
+    #         - "9933:22/tcp"
+    #     #privileged: true
+    #     #command: /usr/sbin/init
+volumes:
+  postgres:
+    external: true
+  dm:
+    external: true
+
+networks:
+  my:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.50.0.0/16
